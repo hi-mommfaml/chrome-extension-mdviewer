@@ -62,7 +62,24 @@ function convertMarkdown() {
   marked.use({ renderer });
 
   // HTMLに変換
-  const htmlContent = marked.parse(markdownText);
+  // 相対パス（画像など）を正しく解決するために baseUrl を設定する
+  const currentUrl = window.location.href;
+  const baseUrl = currentUrl.substring(0, currentUrl.lastIndexOf('/') + 1);
+
+  // [Pre-process]
+  // 画像ファイル名にスペースが含まれていると marked.js が正しく認識しない場合があるため、
+  // ![]() の中身のスペースを %20 に置換しておく
+  // 簡易的な正規表現: !\[任意の文字\]\(任意の文字\)
+  const preProcessedText = markdownText.replace(/!\[(.*?)\]\((.*?)\)/g, (match, alt, src) => {
+    // srcの中にスペースがあればエンコード
+    if (src.includes(' ')) {
+      const encodedSrc = src.trim().split(' ').join('%20');
+      return `![${alt}](${encodedSrc})`;
+    }
+    return match;
+  });
+
+  const htmlContent = marked.parse(preProcessedText, { baseUrl: baseUrl });
 
   // ページの書き換え
   // github-markdown-css を適用するために .markdown-body クラスを持つコンテナでラップします。
