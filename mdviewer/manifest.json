@@ -1,0 +1,49 @@
+{
+    "manifest_version": 3,
+    "name": "Markdown Viewer",
+    "version": "1.0",
+    "description": "View Markdown files as HTML directly in Chrome.",
+    "icons": {
+        "16": "icon128.png",
+        "48": "icon128.png",
+        "128": "icon128.png"
+    },
+    "action": {
+        "default_icon": {
+            "16": "icon128.png",
+            "48": "icon128.png",
+            "128": "icon128.png"
+        }
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "file:///*.md",
+                "file:///*.markdown",
+                "http://*/*.md",
+                "https://*/*.md"
+            ],
+            "css": [
+                "base.css",
+                "copy-button.css",
+                "toc.css"
+            ],
+            "js": [
+                "marked.min.js",
+                "content.js"
+            ]
+        }
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "github-markdown-light.css",
+                "github-markdown-dark.css"
+            ],
+            "matches": [
+                "<all_urls>"
+            ]
+        }
+    ],
+    "permissions": []
+}
