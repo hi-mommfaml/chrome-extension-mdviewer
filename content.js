@@ -75,12 +75,29 @@ function renderMarkdown(text) {
 
   // [Pre-process]
   // 画像ファイル名にスペースが含まれているときの対応
-  const preProcessedText = text.replace(/!\[(.*?)\]\((.*?)\)/g, (match, alt, src) => {
+  let preProcessedText = text.replace(/!\[(.*?)\]\((.*?)\)/g, (match, alt, src) => {
     if (src.includes(' ')) {
       const encodedSrc = src.trim().split(' ').join('%20');
       return `![${alt}](${encodedSrc})`;
     }
     return match;
+  });
+
+  // 数式をプレースホルダーに置き換え
+  const mathExpressions = [];
+
+  // ブロック数式 $$...$$ を処理 (改行を含む)
+  preProcessedText = preProcessedText.replace(/\$\$((?:.|\n)+?)\$\$/g, (match, math) => {
+    const index = mathExpressions.length;
+    mathExpressions.push({ type: 'block', math: math.trim() });
+    return `<span class="math-placeholder" data-math-index="${index}"></span>`;
+  });
+
+  // インライン数式 $...$ を処理 (改行を含まない)
+  preProcessedText = preProcessedText.replace(/\$([^$\n]+?)\$/g, (match, math) => {
+    const index = mathExpressions.length;
+    mathExpressions.push({ type: 'inline', math: math });
+    return `<span class="math-placeholder" data-math-index="${index}"></span>`;
   });
 
   // HTMLに変換
@@ -103,6 +120,7 @@ function renderMarkdown(text) {
   addCopyButtons();
   generateTOC();
   initTheme();
+  renderMathAndDiagrams(mathExpressions);
 }
 
 function startAutoReload() {
@@ -195,6 +213,9 @@ function applyTheme(theme) {
     }
     if (darkLink) darkLink.remove();
   }
+
+  // Mermaid図をテーマに合わせて再レンダリング
+  reRenderMermaid();
 }
 
 function updateThemeIcon(btn, theme) {
@@ -268,6 +289,108 @@ function addCopyButtons() {
 
     block.appendChild(button);
   });
+}
+
+function renderMathAndDiagrams(mathExpressions = []) {
+  // Mermaid: ```mermaid ... ``` をレンダリング
+  if (typeof mermaid !== 'undefined') {
+    const theme = document.body.classList.contains('theme-dark') ? 'dark' : 'default';
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: theme,
+      securityLevel: 'strict'
+    });
+
+    const mermaidBlocks = document.querySelectorAll('pre code.language-mermaid');
+    mermaidBlocks.forEach((code) => {
+      const mermaidCode = code.textContent;
+      const div = document.createElement('div');
+      div.className = 'mermaid';
+      div.textContent = mermaidCode;
+      div.setAttribute('data-mermaid-code', mermaidCode); // コードを保存
+      code.parentElement.replaceWith(div);
+    });
+
+    mermaid.run().catch(e => console.error('Mermaid error:', e));
+  }
+
+  // KaTeX: プレースホルダーを数式に置き換え
+  if (typeof katex !== 'undefined' && mathExpressions.length > 0) {
+    const placeholders = document.querySelectorAll('.math-placeholder');
+    placeholders.forEach(placeholder => {
+      const index = parseInt(placeholder.getAttribute('data-math-index'));
+      const mathData = mathExpressions[index];
+
+      if (mathData) {
+        try {
+          const rendered = katex.renderToString(mathData.math, {
+            displayMode: mathData.type === 'block',
+            throwOnError: false,
+            trust: false
+          });
+
+          if (mathData.type === 'block') {
+            const div = document.createElement('div');
+            div.innerHTML = rendered;
+            div.className = 'katex-block';
+            placeholder.replaceWith(div);
+          } else {
+            const span = document.createElement('span');
+            span.innerHTML = rendered;
+            placeholder.replaceWith(span);
+          }
+        } catch (e) {
+          console.error('KaTeX rendering error:', e);
+          placeholder.textContent = mathData.type === 'block'
+            ? `$$${mathData.math}$$`
+            : `$${mathData.math}$`;
+        }
+      }
+    });
+  }
+}
+
+function reRenderMermaid() {
+  if (typeof mermaid === 'undefined') return;
+
+  // 現在のテーマを取得
+  const theme = document.body.classList.contains('theme-dark') ? 'dark' : 'default';
+
+  // 既存のMermaid div要素を取得
+  const mermaidDivs = document.querySelectorAll('div.mermaid');
+
+  if (mermaidDivs.length === 0) return;
+
+  // 各Mermaid図のコードを保存
+  const mermaidCodes = Array.from(mermaidDivs).map(div => {
+    // data-processed属性がある場合、元のコードを取得する必要がある
+    // Mermaidはレンダリング後にSVGに置き換えるため、元のテキストを保持
+    return {
+      element: div,
+      code: div.getAttribute('data-mermaid-code') || div.textContent
+    };
+  });
+
+  // Mermaidを新しいテーマで初期化
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: theme,
+    securityLevel: 'strict'
+  });
+
+  // 既存のMermaid要素をクリア
+  mermaidDivs.forEach(div => {
+    const code = div.getAttribute('data-mermaid-code') || div.textContent;
+    // 新しいdiv要素を作成
+    const newDiv = document.createElement('div');
+    newDiv.className = 'mermaid';
+    newDiv.textContent = code;
+    newDiv.setAttribute('data-mermaid-code', code);
+    div.replaceWith(newDiv);
+  });
+
+  // 再レンダリング
+  mermaid.run().catch(e => console.error('Mermaid re-render error:', e));
 }
 
 // 実行開始

@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "Markdown Viewer",
-    "version": "1.1",
+    "version": "2.0",
     "description": "View Markdown files as HTML directly in Chrome.",
     "icons": {
         "16": "icon128.png",
@@ -29,10 +29,13 @@
             "css": [
                 "base.css",
                 "copy-button.css",
-                "toc.css"
+                "toc.css",
+                "katex.min.css"
             ],
             "js": [
                 "marked.min.js",
+                "katex.min.js",
+                "mermaid.min.js",
                 "content.js"
             ]
         }
@@ -41,7 +44,8 @@
         {
             "resources": [
                 "github-markdown-light.css",
-                "github-markdown-dark.css"
+                "github-markdown-dark.css",
+                "fonts/*"
             ],
             "matches": [
                 "<all_urls>"
